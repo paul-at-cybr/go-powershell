@@ -11,7 +11,7 @@ The session is kept hot in a single instance of `powershell.exe` such that you d
 
 ## Installation
 
-    go get github.com/paul-at-start/go-powershell
+    go get github.com/paul-at-cybr/go-powershell
 
 ## Usage
 
@@ -37,8 +37,8 @@ import (
     "context"
 	"fmt"
 
-	ps "github.com/paul-at-start/go-powershell"
-	"github.com/paul-at-start/go-powershell/backend"
+	ps "github.com/paul-at-cybr/go-powershell"
+	"github.com/paul-at-cybr/go-powershell/backend"
 )
 
 func main() {
@@ -88,8 +88,8 @@ package main
 
 import (
 
-	ps "github.com/paul-at-start/go-powershell"
-	"github.com/paul-at-start/go-powershell/backend"
+	ps "github.com/paul-at-cybr/go-powershell"
+	"github.com/paul-at-cybr/go-powershell/backend"
 )
 
 func main() {
@@ -121,9 +121,9 @@ import (
 
     "fmt"
 
-	ps "github.com/paul-at-start/go-powershell"
-	"github.com/paul-at-start/go-powershell/backend"
-	"github.com/paul-at-start/go-powershell/utils"
+	ps "github.com/paul-at-cybr/go-powershell"
+	"github.com/paul-at-cybr/go-powershell/backend"
+	"github.com/paul-at-cybr/go-powershell/utils"
 )
 
 func main() {
@@ -182,9 +182,9 @@ package main
 import (
 	"fmt"
 
-	ps "github.com/paul-at-start/go-powershell"
-	"github.com/paul-at-start/go-powershell/backend"
-	"github.com/paul-at-start/go-powershell/middleware"
+	ps "github.com/paul-at-cybr/go-powershell"
+	"github.com/paul-at-cybr/go-powershell/backend"
+	"github.com/paul-at-cybr/go-powershell/middleware"
 )
 
 func main() {
