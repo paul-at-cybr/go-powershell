@@ -27,13 +27,6 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-var newline = func() string {
-	if runtime.GOOS == "windows" {
-		return "\r\n"
-	}
-	return "\n"
-}()
-
 type scriptType int
 
 const (
