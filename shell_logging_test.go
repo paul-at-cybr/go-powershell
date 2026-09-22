@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fireflycons/go-powershell"
-	"github.com/fireflycons/go-powershell/backend"
+	"github.com/paul-at-cybr/go-powershell"
+	"github.com/paul-at-cybr/go-powershell/backend"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 )

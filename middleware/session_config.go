@@ -6,8 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/fireflycons/go-powershell/utils"
-	"github.com/juju/errors"
+	"github.com/paul-at-cybr/go-powershell/utils"
 )
 
 const (
@@ -21,7 +20,7 @@ type SessionConfig struct {
 	AllowRedirection      bool
 	Authentication        string
 	CertificateThumbprint string
-	Credential            interface{}
+	Credential            any
 	Port                  int
 	UseSSL                bool
 }
@@ -72,7 +71,7 @@ func (c *SessionConfig) ToArgs() []string {
 }
 
 type credential interface {
-	prepare(Middleware) (interface{}, error)
+	prepare(Middleware) (any, error)
 }
 
 // UserPasswordCredential specifies credentials to connect to a remote computer
@@ -81,18 +80,18 @@ type UserPasswordCredential struct {
 	Password string
 }
 
-func (c *UserPasswordCredential) prepare(s Middleware) (interface{}, error) {
+func (c *UserPasswordCredential) prepare(s Middleware) (any, error) {
 	name := "goCred" + utils.CreateRandomString(8)
 	pwname := "goPass" + utils.CreateRandomString(8)
 
 	_, _, err := s.Execute(fmt.Sprintf("$%s = ConvertTo-SecureString -String %s -AsPlainText -Force", pwname, utils.QuoteArg(c.Password)))
 	if err != nil {
-		return nil, errors.Annotate(err, "Could not convert password to secure string")
+		return nil, fmt.Errorf("Could not convert password to secure string: %w", err)
 	}
 
 	_, _, err = s.Execute(fmt.Sprintf("$%s = New-Object -TypeName 'System.Management.Automation.PSCredential' -ArgumentList %s, $%s", name, utils.QuoteArg(c.Username), pwname))
 	if err != nil {
-		return nil, errors.Annotate(err, "Could not create PSCredential object")
+		return nil, fmt.Errorf("Could not create PSCredential object: %w", err)
 	}
 
 	return fmt.Sprintf("$%s", name), nil

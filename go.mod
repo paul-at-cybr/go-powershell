@@ -1,10 +1,9 @@
-module github.com/fireflycons/go-powershell
+module github.com/paul-at-cybr/go-powershell
 
 go 1.27.1
 
 require (
 	github.com/coreos/go-semver v0.3.1
-	github.com/juju/errors v1.0.0
 	github.com/sirupsen/logrus v1.10.2
 	github.com/stretchr/testify v1.12.1
 	golang.org/x/sync v0.23.0

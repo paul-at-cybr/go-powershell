@@ -7,8 +7,6 @@ import (
 	"io"
 	"regexp"
 	"strings"
-
-	"github.com/juju/errors"
 )
 
 // sshSession exists so we don't create a hard dependency on crypto/ssh.
@@ -29,29 +27,37 @@ type SSH struct {
 func (b *SSH) StartProcess(cmd string, args ...string) (Waiter, io.Writer, io.Reader, io.Reader, error) {
 	stdin, err := b.Session.StdinPipe()
 	if err != nil {
-		return nil, nil, nil, nil, errors.Annotate(err, "Could not get hold of the SSH session's stdin stream")
+		return nil, nil, nil, nil, fmt.Errorf("Could not get hold of the SSH session's stdin stream: %w", err)
 	}
 
 	stdout, err := b.Session.StdoutPipe()
 	if err != nil {
-		return nil, nil, nil, nil, errors.Annotate(err, "Could not get hold of the SSH session's stdout stream")
+		return nil, nil, nil, nil, fmt.Errorf("Could not get hold of the SSH session's stdout stream: %w", err)
 	}
 
 	stderr, err := b.Session.StderrPipe()
 	if err != nil {
-		return nil, nil, nil, nil, errors.Annotate(err, "Could not get hold of the SSH session's stderr stream")
+		return nil, nil, nil, nil, fmt.Errorf("Could not get hold of the SSH session's stderr stream: %w", err)
 	}
 
-	err = b.Session.Start(b.createCmd(cmd, args))
+	startCmd, err := b.createCmd(cmd, args)
 	if err != nil {
-		return nil, nil, nil, nil, errors.Annotate(err, "Could not spawn process via SSH")
+		return nil, nil, nil, nil, fmt.Errorf("Could not create SSH start command: %w", err)
+	}
+	err = b.Session.Start(startCmd)
+	if err != nil {
+		return nil, nil, nil, nil, fmt.Errorf("Could not spawn process via SSH: %w", err)
 	}
 
 	return b.Session, stdin, stdout, stderr, nil
 }
 
-func (b *SSH) createCmd(cmd string, args []string) string {
-	parts := []string{cmd}
+func (b *SSH) createCmd(cmd string, args []string) (string, error) {
+	sb := &strings.Builder{}
+	_, err := sb.WriteString(cmd + " ")
+	if err != nil {
+		return "", fmt.Errorf("Could not write command to string builder: %w", err)
+	}
 	simple := regexp.MustCompile(`^[a-z0-9_/.~+-]+$`)
 
 	for _, arg := range args {
@@ -59,12 +65,15 @@ func (b *SSH) createCmd(cmd string, args []string) string {
 			arg = b.quote(arg)
 		}
 
-		parts = append(parts, arg)
+		_, err := sb.WriteString(arg + " ")
+		if err != nil {
+			return "", fmt.Errorf("Could not write argument to string builder: %w", err)
+		}
 	}
 
-	return strings.Join(parts, " ")
+	return sb.String(), nil
 }
 
 func (b *SSH) quote(s string) string {
-	return fmt.Sprintf(`"%s"`, s)
+	return fmt.Sprintf(`%q`, s)
 }

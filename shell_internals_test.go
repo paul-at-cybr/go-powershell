@@ -9,12 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fireflycons/go-powershell/utils"
+	"github.com/paul-at-cybr/go-powershell/utils"
 	"github.com/stretchr/testify/require"
 )
 
 func TestReadWithContext(t *testing.T) {
-
 	const interCommandDelay = time.Millisecond * 100
 
 	pr, pw := io.Pipe()
@@ -37,7 +36,6 @@ func TestReadWithContext(t *testing.T) {
 
 	wg.Go(
 		func() {
-
 			for _, c := range chunks {
 				_, _ = pw.Write([]byte(c))
 				// Simulate time gap between commands.
@@ -66,7 +64,6 @@ func TestReadWithContext(t *testing.T) {
 }
 
 func TestStreamReader(t *testing.T) {
-
 	const interCommandDelay = time.Millisecond * 100
 
 	pr, pw := io.Pipe()
@@ -76,7 +73,6 @@ func TestStreamReader(t *testing.T) {
 	}()
 
 	testFunc := func(iter int) {
-
 		ctx, cancel := context.WithTimeout(context.Background(), interCommandDelay*5)
 		defer cancel()
 
@@ -102,7 +98,6 @@ func TestStreamReader(t *testing.T) {
 		}
 
 		wg.Go(func() {
-
 			for _, c := range chunks {
 				data := c.data + c.boundary
 				_, err := pw.Write([]byte(data))
@@ -118,7 +113,6 @@ func TestStreamReader(t *testing.T) {
 
 			sout := ""
 			err := streamReader(ctx, pr, c.boundary, &sout)
-
 			if err != nil {
 				require.ErrorIs(t, err, io.EOF, "unexpected error on read #%d, iter #%d: %v", i+1, iter+1, err)
 			}
@@ -141,10 +135,9 @@ func TestStreamReader(t *testing.T) {
 }
 
 func TestDetermineScriptType(t *testing.T) {
-
 	testFile := filepath.Join(os.TempDir(), utils.CreateRandomString(8)+".ps1")
 
-	require.NoError(t, os.WriteFile(testFile, []byte("Write-Host"), 0644))
+	require.NoError(t, os.WriteFile(testFile, []byte("Write-Host"), 0o600))
 	defer func() {
 		_ = os.Remove(testFile)
 	}()

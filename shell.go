@@ -9,10 +9,10 @@ package powershell
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -21,9 +21,8 @@ import (
 	"time"
 
 	"github.com/coreos/go-semver/semver"
-	"github.com/fireflycons/go-powershell/backend"
-	"github.com/fireflycons/go-powershell/utils"
-	"github.com/juju/errors"
+	"github.com/paul-at-cybr/go-powershell/backend"
+	"github.com/paul-at-cybr/go-powershell/utils"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -76,7 +75,6 @@ type ShellOptionFunc func(*ShellOptions)
 // of interactions with the shell to a log output.
 // See the tests for examples.
 type Logger interface {
-
 	// Infof is called to emit an informational message, such as a command to be exectuted
 	Infof(format string, v ...any)
 
@@ -141,8 +139,7 @@ type shell struct {
 
 // nullLogger is a noop implementation of Logger
 // for when WithLogger was not passed
-type nullLogger struct {
-}
+type nullLogger struct{}
 
 func (nullLogger) Infof(format string, v ...any)  {}
 func (nullLogger) Errorf(format string, v ...any) {}
@@ -151,7 +148,6 @@ var _ Logger = (*nullLogger)(nil)
 
 // New creates a new PowerShell session
 func New(backend backend.Starter, opts ...ShellOptionFunc) (Shell, error) {
-
 	s := &shell{
 		backend: backend,
 		lock:    &sync.Mutex{},
@@ -194,7 +190,6 @@ func WithLogger(l Logger) ShellOptionFunc {
 //
 // This call may block indefinitely if the command is not well formed.
 func (s *shell) Execute(cmd string) (string, string, error) {
-
 	return s.ExecuteWithContext(context.TODO(), cmd)
 }
 
@@ -206,7 +201,6 @@ func (s *shell) Execute(cmd string) (string, string, error) {
 // Note that if the error is "context deadline exceeded", the underlying session will be
 // unstable and it will be restarted. A restarted shell _may_ be unstable!
 func (s *shell) ExecuteWithContext(ctx context.Context, cmd string) (string, string, error) {
-
 	// Lock the shell so that only one thread can execute a command at a time
 	s.lock.Lock()
 	sout, serr, err := s.executeWithContext(ctx, cmd)
@@ -220,7 +214,6 @@ func (s *shell) Version() *semver.Version {
 
 // Exit releases the PowerShell session, terminating the underlying powershell.exe process
 func (s *shell) Exit() error {
-
 	// Prevent panics if Exit is called multiple times
 	if s == nil || s.handle == nil {
 		if s != nil {
@@ -253,7 +246,6 @@ func (s *shell) Exit() error {
 // If the argument is a path to an existing script file, then that will be executed,
 // otherwise the value is assumed to be a multiline string.
 func (s *shell) ExecuteScript(scriptOrPath string) (string, string, error) {
-
 	return s.ExecuteScriptWithContext(context.Background(), scriptOrPath)
 }
 
@@ -268,9 +260,7 @@ func (s *shell) ExecuteScript(scriptOrPath string) (string, string, error) {
 // Note that if the error is "context deadline exceeded", the underlying session will be
 // unstable and it will be restarted. A restarted shell _may_ be unstable!
 func (s *shell) ExecuteScriptWithContext(ctx context.Context, scriptOrPath string) (string, string, error) {
-
 	st, err := determineScriptType(scriptOrPath)
-
 	if err != nil {
 		s.options.logger.Errorf("Script determination failed with error: %v", err)
 		return "", "", err
@@ -300,7 +290,6 @@ func (s *shell) ExecuteScriptWithContext(ctx context.Context, scriptOrPath strin
 
 // This is te core method that actually interacts with the PowerShell session
 func (s *shell) executeWithContext(ctx context.Context, cmd string) (sout string, serr string, rerr error) {
-
 	sout = ""
 	serr = ""
 	rerr = nil
@@ -345,7 +334,7 @@ func (s *shell) executeWithContext(ctx context.Context, cmd string) (sout string
 
 	_, err := s.stdin.Write([]byte(full))
 	if err != nil {
-		return "", "", errors.Wrap(ErrPipeWrite, errors.Annotate(err, cmd))
+		return "", "", fmt.Errorf("%w: %s: %w", ErrPipeWrite, cmd, err)
 	}
 
 	// read stdout and stderr
@@ -360,31 +349,16 @@ func (s *shell) executeWithContext(ctx context.Context, cmd string) (sout string
 	})
 
 	err = eg.Wait()
-
 	if err != nil {
-		// DeadlineExceeded or IO errors should be all we get here.
 		s.options.logger.Errorf("Command submission failed with %v: %s", err, cmd)
-		if errors.Is(err, context.DeadlineExceeded) {
-
-			if s.restarting == 0 {
-				s.options.logger.Infof("Restarting session")
-				s.restarting++
-				if err1 := s.restart(); err1 != nil {
-					err = errors.Wrap(err, err1)
-				}
-			}
-
-			s.restarting = 0
-		}
-
-		rerr = err
+		rerr = s.handleStreamError(err)
 		return
 	}
 
 	if len(serr) > 0 {
 		// Any "normal" error, such as an unhandled exception
 		// or direct write to stderr will be caught here.
-		rerr = errors.Annotate(ErrCommandFailed, cmd)
+		rerr = fmt.Errorf("%s: %w", cmd, ErrCommandFailed)
 		return
 	}
 
@@ -392,25 +366,35 @@ func (s *shell) executeWithContext(ctx context.Context, cmd string) (sout string
 	return
 }
 
-func (s *shell) start() error {
+func (s *shell) handleStreamError(err error) error {
+	// DeadlineExceeded or IO errors should be all we get here.
+	if !errors.Is(err, context.DeadlineExceeded) {
+		return err
+	}
 
+	if s.restarting == 0 {
+		s.options.logger.Infof("Restarting session")
+		s.restarting++
+		if err1 := s.restart(); err1 != nil {
+			err = fmt.Errorf("%w: %w", err1, err)
+		}
+	}
+
+	s.restarting = 0
+
+	return err
+}
+
+func (s *shell) start() error {
 	var ps string
 
-	if local, ok := s.backend.(*backend.Local); ok {
+	local, ok := s.backend.(*backend.Local)
+	if ok {
+		var err error
 
-		var (
-			err error
-		)
-
-		switch local.Version {
-		case backend.WindowsPowerShell:
-			ps = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
-		case backend.Pwsh:
-			ps, err = exec.LookPath("pwsh")
-			if err != nil {
-				// Fallbask to default powershell
-				ps = "powershell.exe"
-			}
+		ps, err = local.ExecutablePath()
+		if err != nil {
+			return fmt.Errorf("local.ExecutablePath(): %w", err)
 		}
 	}
 
@@ -429,19 +413,20 @@ func (s *shell) start() error {
 	defer cancel()
 
 	// Read the powershell host's version
-	if versionStr, _, err := s.executeWithContext(ctx, `Write-Host "$($host.version.major).$($host.version.minor).$($host.version.build)"`); err == nil {
-		if v, err := semver.NewVersion(strings.TrimSpace(versionStr)); err == nil {
-			s.version = v
-		}
-	} else if errors.Is(err, context.DeadlineExceeded) {
-		s.options.logger.Errorf("Cannot determine PowerShell version: %v", err)
-		return err
-	} else {
-		s.options.logger.Errorf("Cannot determine PowerShell version: %v", err)
-		s.version = &semver.Version{
-			Major: -1,
-		}
+	versionStr, _, err := s.executeWithContext(ctx, `Write-Host "$($host.version.major).$($host.version.minor).$($host.version.build)"`)
+	if err != nil && errors.Is(err, context.DeadlineExceeded) {
+		return fmt.Errorf("deadline exceeded while determining powershell version: %w", err)
 	}
+	if err != nil {
+		return fmt.Errorf("failed to determine powershell version: %w", err)
+	}
+
+	trimV := strings.TrimSpace(versionStr)
+	v, err := semver.NewVersion(trimV)
+	if err != nil {
+		return fmt.Errorf("failed to parse powershell version(%s): %w", trimV, err)
+	}
+	s.version = v
 
 	// Preload any optional modules
 	if len(s.options.modulesToLoad) > 0 {
@@ -456,8 +441,7 @@ func (s *shell) start() error {
 			",",
 		)
 		if _, errStr, err := s.executeWithContext(ctx, modules+" | ForEach-Object { if (Get-Module $_) { Remove-Module $_ } ; Import-Module -Force $_ }"); err != nil {
-			err = errors.Wrap(err, ErrLoadModules)
-			err = errors.Annotate(err, errStr)
+			err = fmt.Errorf("%s: %w: %w", errStr, ErrLoadModules, err)
 			s.options.logger.Errorf("%v", err)
 			return err
 		}
@@ -467,20 +451,16 @@ func (s *shell) start() error {
 }
 
 func (s *shell) restart() error {
-
 	s.options.logger.Infof("%s", "Restarting shell")
 	_ = s.Exit()
 	return s.start()
 }
 
 func streamReader(ctx context.Context, stream io.Reader, boundary string, buffer *string) error {
-
 	// read all output until we have found our boundary token
 	output := strings.Builder{}
 	bufsize := 64
 	buf := make([]byte, bufsize)
-
-	var outStr string
 
 	for {
 		var (
@@ -500,17 +480,17 @@ func streamReader(ctx context.Context, stream io.Reader, boundary string, buffer
 
 		output.Write(buf[:read])
 
-		outStr = strings.TrimRight(output.String(), "\r\n")
-		//log.Printf("streamReader receive: %s\n", outStr)
-		if strings.HasSuffix(outStr, boundary) {
-			// Stop reading when boundary is found
-			break
+		// Under load, pwsh (>= 7.6.x) occasionally writes ANSI/VT100 mode-set
+		// escape sequences (\x1b[?1h / \x1b[?1l) to the pipe immediately after
+		// the boundary is written. This extra data can land in the same Read()
+		// call as the boundary itself, e.g.:
+		// "Worker 1 - Iteration 1\n$boundary1412c53763748642c508bf13$\n\x1b[?1h"
+		// These trailing escape sequences can (and should) be ignored.
+		if idx := strings.Index(output.String(), boundary); idx >= 0 {
+			*buffer = stripANSI(output.String()[:idx])
+			return nil
 		}
 	}
-
-	*buffer = strings.TrimSuffix(outStr, boundary)
-
-	return nil
 }
 
 func readWithContext(ctx context.Context, r io.Reader, buf []byte) (int, error) {
@@ -574,15 +554,26 @@ func createBoundary() string {
 	return "$boundary" + utils.CreateRandomString(12) + "$"
 }
 
+// ansiEscapePattern matches ANSI/VT100 CSI escape sequences. Some versions of
+// pwsh (observed from 7.6.x) write terminal mode-set sequences such as
+// "\x1b[?1h" (enable application cursor keys) and "\x1b[?1l" (disable it)
+// around each line of output, even when stdout is redirected to a pipe
+// rather than an interactive terminal. These need to be stripped so callers
+// receive clean text.
+var ansiEscapePattern = regexp.MustCompile(`\x1b\[[0-?]*[ -/]*[@-~]`)
+
+func stripANSI(s string) string {
+	return ansiEscapePattern.ReplaceAllString(s, "")
+}
+
 var pathPattern = func() *regexp.Regexp {
 	if runtime.GOOS == "windows" {
 		return regexp.MustCompile(`^(?:[a-zA-Z]:[\\/](?:[^\\/:*?"<>|\r\n]+[\\/]?)*|\\\\[^\\/:*?"<>|\r\n]+\\[^\\/:*?"<>|\r\n]+(?:\\[^\\/:*?"<>|\r\n]+)*|\.{1,2}(?:[\\/][^\\/:*?"<>|\r\n]+)*|[^\\/:*?"<>|\r\n]+(?:[\\/][^\\/:*?"<>|\r\n]+)*)$`)
 	}
-	return regexp.MustCompile(`^(?:/(?:[^/\0]+/)*[^/\0]*|\.{1,2}(?:/[^/\0]+)*/?[^/\0]*|[^/\0]+(?:/[^/\0]+)*)$`)
+	return regexp.MustCompile(`^(?:/(?:[^/\0\s]+/)*[^/\0\s]*|\.{1,2}(?:/[^/\0\s]+)*/?[^/\0\s]*|[^/\0\s]+(?:/[^/\0\s]+)*)$`)
 }()
 
 func determineScriptType(scriptOrPath string) (scriptType, error) {
-
 	if strings.ContainsAny(scriptOrPath, "\r\n") {
 		// multline text
 		return scriptMultiline, nil
@@ -605,10 +596,9 @@ func determineScriptType(scriptOrPath string) (scriptType, error) {
 }
 
 func prepareMultilineScript(script string) (string, func(), error) {
-
 	path := filepath.Join(os.TempDir(), utils.CreateRandomString(8)+".ps1")
 
-	if err := os.WriteFile(path, []byte(script), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(script), 0o600); err != nil {
 		return "", func() {}, err
 	}
 

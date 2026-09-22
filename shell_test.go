@@ -8,36 +8,42 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/fireflycons/go-powershell"
-	"github.com/fireflycons/go-powershell/backend"
-	"github.com/fireflycons/go-powershell/utils"
+	"github.com/paul-at-cybr/go-powershell"
+	"github.com/paul-at-cybr/go-powershell/backend"
+	"github.com/paul-at-cybr/go-powershell/utils"
 	"github.com/stretchr/testify/require"
 )
 
 func TestShell(t *testing.T) {
-
 	shell, err := powershell.New(&backend.Local{})
 	require.NoError(t, err)
 	defer func() {
 		_ = shell.Exit()
 	}()
 
-	stdout, _, err := shell.Execute("Get-WmiObject -Class Win32_Processor")
+	processorCmd := "Get-CimInstance -ClassName Win32_Processor"
+	listPathCmd := "gci -Path C:\\"
+	if runtime.GOOS != "windows" {
+		processorCmd = "Get-Process | Select-Object -First 1"
+		listPathCmd = "gci -Path /"
+	}
+
+	stdout, _, err := shell.Execute(processorCmd)
 
 	require.NoError(t, err)
 	fmt.Println(stdout)
-	stdout, _, err = shell.Execute("gci -Path C:\\")
+	stdout, _, err = shell.Execute(listPathCmd)
 	require.NoError(t, err)
 	fmt.Println(stdout)
 }
 
 func TestInvalidCommands(t *testing.T) {
-
 	shell, err := powershell.New(&backend.Local{})
 	require.NoError(t, err)
 	defer func() {
@@ -92,7 +98,6 @@ func TestInvalidCommands(t *testing.T) {
 }
 
 func TestShellWithContext(t *testing.T) {
-
 	shell, err := powershell.New(&backend.Local{})
 	require.NoError(t, err)
 	defer func() {
@@ -120,9 +125,7 @@ func TestShellWithContext(t *testing.T) {
 }
 
 func TestShellConcurrent(t *testing.T) {
-
 	worker := func(id int, shell powershell.Shell, t *testing.T, wg *sync.WaitGroup) {
-
 		defer wg.Done()
 		for i := range 5 {
 			sleep := rand.Intn(50) + 50
@@ -151,14 +154,13 @@ func TestShellConcurrent(t *testing.T) {
 
 	var wg sync.WaitGroup
 	wg.Add(numWorkers)
-	for i := 0; i < numWorkers; i++ {
+	for i := range numWorkers {
 		go worker(i, shell, t, &wg)
 	}
 	wg.Wait()
 }
 
 func TestShellExit(t *testing.T) {
-
 	shell, err := powershell.New(&backend.Local{})
 	require.NoError(t, err)
 	_ = shell.Exit()
@@ -170,8 +172,7 @@ func TestShellExit(t *testing.T) {
 }
 
 func TestShellWriteStderr(t *testing.T) {
-
-	shell, err := powershell.New(&backend.Local{Version: backend.WindowsPowerShell})
+	shell, err := powershell.New(&backend.Local{})
 	require.NoError(t, err)
 	defer func() {
 		_ = shell.Exit()
@@ -184,7 +185,7 @@ func TestShellWriteStderr(t *testing.T) {
 }
 
 func TestShellExceptionThrown(t *testing.T) {
-	shell, err := powershell.New(&backend.Local{Version: backend.WindowsPowerShell})
+	shell, err := powershell.New(&backend.Local{})
 	require.NoError(t, err)
 	defer func() {
 		_ = shell.Exit()
@@ -230,7 +231,7 @@ Write-Host "hello"
 Write-Host "goodbye"
 `
 	scriptFile := filepath.Join(os.TempDir(), utils.CreateRandomString(8)+".ps1")
-	require.NoError(t, os.WriteFile(scriptFile, []byte(script), 0644), "Error writing script file")
+	require.NoError(t, os.WriteFile(scriptFile, []byte(script), 0o600), "Error writing script file")
 	defer func() {
 		_ = os.Remove(scriptFile)
 	}()
@@ -248,7 +249,9 @@ Write-Host "goodbye"
 }
 
 func TestShellWindowsPowerShell(t *testing.T) {
-
+	if runtime.GOOS != "windows" {
+		t.Skip("Skipping Windows PowerShell test on non-Windows OS")
+	}
 	shell, err := powershell.New(&backend.Local{Version: backend.WindowsPowerShell})
 	require.NoError(t, err)
 	defer func() {
@@ -259,22 +262,23 @@ func TestShellWindowsPowerShell(t *testing.T) {
 }
 
 func TestShellPwsh(t *testing.T) {
-
 	shell, err := powershell.New(&backend.Local{Version: backend.Pwsh})
 	defer func() {
 		_ = shell.Exit()
 	}()
 	require.NoError(t, err)
+	require.NotNil(t, shell)
+	version := shell.Version()
+	require.NotNil(t, version)
 
-	v := shell.Version().Major
+	v := version.Major
 	require.Greater(t, v, int64(5), "Expected PowerShell major version > 5, but got %s. Maybe pwsh is not installed here", v)
 }
 
 func TestWithModules(t *testing.T) {
-
-	// These modules should be present on all systems
-	// but not imported by default
-	modules := []string{"CimCmdlets", "DnsClient"}
+	// These modules ship with both Windows PowerShell and pwsh
+	// but are not imported by default
+	modules := []string{"Microsoft.PowerShell.Archive", "Microsoft.PowerShell.Security"}
 
 	shell, err := powershell.New(
 		&backend.Local{},

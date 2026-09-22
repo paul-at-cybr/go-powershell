@@ -1,6 +1,6 @@
 # go-powershell
 
-This is a fork of the original Gorilla implementation with many [enhancements](#enhancements) over the other forks found here!
+This is a fork of [a fork](https://github.com/fireflycons/go-powershell) of [the original Gorilla implementation](https://github.com/40a/go-powershell) with many [enhancements](#enhancements) over the other forks found here!
 
 This package was originally inspired by [jPowerShell](https://github.com/profesorfalken/jPowerShell)
 and allows one to run and remote-control a PowerShell session. Use this if you
@@ -11,7 +11,7 @@ The session is kept hot in a single instance of `powershell.exe` such that you d
 
 ## Installation
 
-    go get github.com/fireflycons/go-powershell
+    go get github.com/paul-at-start/go-powershell
 
 ## Usage
 
@@ -37,8 +37,8 @@ import (
     "context"
 	"fmt"
 
-	ps "github.com/fireflycons/go-powershell"
-	"github.com/fireflycons/go-powershell/backend"
+	ps "github.com/paul-at-start/go-powershell"
+	"github.com/paul-at-start/go-powershell/backend"
 )
 
 func main() {
@@ -88,8 +88,8 @@ package main
 
 import (
 
-	ps "github.com/fireflycons/go-powershell"
-	"github.com/fireflycons/go-powershell/backend"
+	ps "github.com/paul-at-start/go-powershell"
+	"github.com/paul-at-start/go-powershell/backend"
 )
 
 func main() {
@@ -121,9 +121,9 @@ import (
 
     "fmt"
 
-	ps "github.com/fireflycons/go-powershell"
-	"github.com/fireflycons/go-powershell/backend"
-	"github.com/fireflycons/go-powershell/utils"
+	ps "github.com/paul-at-start/go-powershell"
+	"github.com/paul-at-start/go-powershell/backend"
+	"github.com/paul-at-start/go-powershell/utils"
 )
 
 func main() {
@@ -182,9 +182,9 @@ package main
 import (
 	"fmt"
 
-	ps "github.com/fireflycons/go-powershell"
-	"github.com/fireflycons/go-powershell/backend"
-	"github.com/fireflycons/go-powershell/middleware"
+	ps "github.com/paul-at-start/go-powershell"
+	"github.com/paul-at-start/go-powershell/backend"
+	"github.com/paul-at-start/go-powershell/middleware"
 )
 
 func main() {
@@ -241,9 +241,10 @@ The following enhancements have been made to the original code:
 * Sentinel errors returned by shell methods that can be tested with Errors.Is
 * Ability to log interaction with the underlying PowerShell session (see [tests](./shell_logging_test.go))
 * Much enlarged test suite.
+* Linux support (pwsh only)
 
-Future changes:
-* Support Linux and Mac (pwsh only)
+Todo:
+* Verify macOS support (probably works, but you never know)
 
 
 ## License
