@@ -28,22 +28,22 @@ func (l *Local) StartProcess(cmd string, args ...string) (Waiter, io.Writer, io.
 
 	stdin, err := command.StdinPipe()
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("Could not get hold of the PowerShell's stdin stream: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("could not get hold of the PowerShell's stdin stream: %w", err)
 	}
 
 	stdout, err := command.StdoutPipe()
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("Could not get hold of the PowerShell's stdout stream: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("could not get hold of the PowerShell's stdout stream: %w", err)
 	}
 
 	stderr, err := command.StderrPipe()
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("Could not get hold of the PowerShell's stderr stream: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("could not get hold of the PowerShell's stderr stream: %w", err)
 	}
 
 	err = command.Start()
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("Could not spawn PowerShell process: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("could not spawn PowerShell process: %w", err)
 	}
 
 	return command, stdin, stdout, stderr, nil

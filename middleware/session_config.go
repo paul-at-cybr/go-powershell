@@ -86,12 +86,12 @@ func (c *UserPasswordCredential) prepare(s Middleware) (any, error) {
 
 	_, _, err := s.Execute(fmt.Sprintf("$%s = ConvertTo-SecureString -String %s -AsPlainText -Force", pwname, utils.QuoteArg(c.Password)))
 	if err != nil {
-		return nil, fmt.Errorf("Could not convert password to secure string: %w", err)
+		return nil, fmt.Errorf("could not convert password to secure string: %w", err)
 	}
 
 	_, _, err = s.Execute(fmt.Sprintf("$%s = New-Object -TypeName 'System.Management.Automation.PSCredential' -ArgumentList %s, $%s", name, utils.QuoteArg(c.Username), pwname))
 	if err != nil {
-		return nil, fmt.Errorf("Could not create PSCredential object: %w", err)
+		return nil, fmt.Errorf("could not create PSCredential object: %w", err)
 	}
 
 	return fmt.Sprintf("$%s", name), nil
