@@ -5,7 +5,10 @@ package backend
 import (
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
+	"runtime"
+	"strings"
 )
 
 type PowerShellVersion int
@@ -25,6 +28,13 @@ type Local struct {
 func (l *Local) StartProcess(cmd string, args ...string) (Waiter, io.Writer, io.Reader, io.Reader, error) {
 	// #nosec G204: The variables passed to this function are not user-controlled
 	command := exec.Command(cmd, args...)
+	if runtime.GOOS == "windows" && l.Version == WindowsPowerShell {
+		// A Windows PowerShell process launched by pwsh inherits pwsh's module
+		// path. That can make Windows PowerShell load incompatible PowerShell 7
+		// modules. Leave PSModulePath unset so Windows PowerShell constructs its
+		// own default path during startup.
+		command.Env = environmentWithout(os.Environ(), "PSModulePath")
+	}
 
 	stdin, err := command.StdinPipe()
 	if err != nil {
@@ -47,6 +57,17 @@ func (l *Local) StartProcess(cmd string, args ...string) (Waiter, io.Writer, io.
 	}
 
 	return command, stdin, stdout, stderr, nil
+}
+
+func environmentWithout(environment []string, name string) []string {
+	filtered := make([]string, 0, len(environment))
+	for _, variable := range environment {
+		key, _, _ := strings.Cut(variable, "=")
+		if !strings.EqualFold(key, name) {
+			filtered = append(filtered, variable)
+		}
+	}
+	return filtered
 }
 
 func (l *Local) ExecutablePath() (string, error) {
