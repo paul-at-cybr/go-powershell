@@ -13,6 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestWithStartupTimeout(t *testing.T) {
+	opts := &ShellOptions{}
+	WithStartupTimeout(45 * time.Second)(opts)
+	require.Equal(t, 45*time.Second, opts.startupTimeout)
+}
+
 func TestReadWithContext(t *testing.T) {
 	const interCommandDelay = time.Millisecond * 100
 

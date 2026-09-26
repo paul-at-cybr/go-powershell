@@ -63,8 +63,9 @@ var (
 
 // ShellOptions represents options passed to the shell when it is started.
 type ShellOptions struct {
-	modulesToLoad []string
-	logger        Logger
+	modulesToLoad  []string
+	logger         Logger
+	startupTimeout time.Duration
 }
 
 // ShellOptionFunc describes optional argmuments to add to the [New] call.
@@ -152,7 +153,8 @@ func New(backend backend.Starter, opts ...ShellOptionFunc) (Shell, error) {
 		backend: backend,
 		lock:    &sync.Mutex{},
 		options: &ShellOptions{
-			logger: &nullLogger{},
+			logger:         &nullLogger{},
+			startupTimeout: 30 * time.Second,
 		},
 	}
 
@@ -183,6 +185,14 @@ func WithModules(modules ...string) ShellOptionFunc {
 func WithLogger(l Logger) ShellOptionFunc {
 	return func(so *ShellOptions) {
 		so.logger = l
+	}
+}
+
+// WithStartupTimeout sets the maximum amount of time to wait for PowerShell
+// to start and report its version. The default is 30 seconds.
+func WithStartupTimeout(timeout time.Duration) ShellOptionFunc {
+	return func(so *ShellOptions) {
+		so.startupTimeout = timeout
 	}
 }
 
@@ -409,7 +419,7 @@ func (s *shell) start() error {
 	s.stdout = stdout
 	s.stderr = stderr
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), s.options.startupTimeout)
 	defer cancel()
 
 	// Read the powershell host's version

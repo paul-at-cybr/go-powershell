@@ -39,6 +39,9 @@ func TestLogToStandardLibraryLog(t *testing.T) {
 		&backend.Local{},
 		powershell.WithLogger(adapter),
 	)
+	if shell != nil {
+		t.Cleanup(func() { _ = shell.Exit() })
+	}
 	require.NoError(t, err)
 
 	cmd := `Write-Host 'hello'`
@@ -87,6 +90,9 @@ func TestLogToLogrus(t *testing.T) {
 		&backend.Local{},
 		powershell.WithLogger(adapter),
 	)
+	if shell != nil {
+		t.Cleanup(func() { _ = shell.Exit() })
+	}
 	require.NoError(t, err)
 
 	cmd := `Write-Host 'hello'`
