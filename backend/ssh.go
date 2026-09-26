@@ -27,26 +27,26 @@ type SSH struct {
 func (b *SSH) StartProcess(cmd string, args ...string) (Waiter, io.Writer, io.Reader, io.Reader, error) {
 	stdin, err := b.Session.StdinPipe()
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("Could not get hold of the SSH session's stdin stream: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("could not get hold of the SSH session's stdin stream: %w", err)
 	}
 
 	stdout, err := b.Session.StdoutPipe()
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("Could not get hold of the SSH session's stdout stream: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("could not get hold of the SSH session's stdout stream: %w", err)
 	}
 
 	stderr, err := b.Session.StderrPipe()
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("Could not get hold of the SSH session's stderr stream: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("could not get hold of the SSH session's stderr stream: %w", err)
 	}
 
 	startCmd, err := b.createCmd(cmd, args)
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("Could not create SSH start command: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("could not create SSH start command: %w", err)
 	}
 	err = b.Session.Start(startCmd)
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("Could not spawn process via SSH: %w", err)
+		return nil, nil, nil, nil, fmt.Errorf("could not spawn process via SSH: %w", err)
 	}
 
 	return b.Session, stdin, stdout, stderr, nil
@@ -56,7 +56,7 @@ func (b *SSH) createCmd(cmd string, args []string) (string, error) {
 	sb := &strings.Builder{}
 	_, err := sb.WriteString(cmd + " ")
 	if err != nil {
-		return "", fmt.Errorf("Could not write command to string builder: %w", err)
+		return "", fmt.Errorf("could not write command to string builder: %w", err)
 	}
 	simple := regexp.MustCompile(`^[a-z0-9_/.~+-]+$`)
 
@@ -67,7 +67,7 @@ func (b *SSH) createCmd(cmd string, args []string) (string, error) {
 
 		_, err := sb.WriteString(arg + " ")
 		if err != nil {
-			return "", fmt.Errorf("Could not write argument to string builder: %w", err)
+			return "", fmt.Errorf("could not write argument to string builder: %w", err)
 		}
 	}
 
