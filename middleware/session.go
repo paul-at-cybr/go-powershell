@@ -20,7 +20,7 @@ func NewSession(upstream Middleware, config *SessionConfig) (Middleware, error) 
 	if ok {
 		credentialParamValue, err := asserted.prepare(upstream)
 		if err != nil {
-			return nil, fmt.Errorf("Could not setup credentials: %w", err)
+			return nil, fmt.Errorf("could not setup credentials: %w", err)
 		}
 
 		config.Credential = credentialParamValue
@@ -31,7 +31,7 @@ func NewSession(upstream Middleware, config *SessionConfig) (Middleware, error) 
 
 	_, _, err := upstream.Execute(fmt.Sprintf("$%s = New-PSSession %s", name, args))
 	if err != nil {
-		return nil, fmt.Errorf("Could not create new PSSession: %w", err)
+		return nil, fmt.Errorf("could not create new PSSession: %w", err)
 	}
 
 	return &session{upstream, name}, nil
