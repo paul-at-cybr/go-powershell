@@ -440,7 +440,12 @@ func (s *shell) start() error {
 			}(),
 			",",
 		)
-		if _, errStr, err := s.executeWithContext(ctx, modules+" | ForEach-Object { if (Get-Module $_) { Remove-Module $_ } ; Import-Module -Force $_ }"); err != nil {
+		// Do not force-reload modules that PowerShell loaded during startup. On
+		// Windows, removing Microsoft.PowerShell.Security does not remove its
+		// extended type data, so importing it again with -Force reports duplicate
+		// members. Importing only missing modules also makes this operation
+		// idempotent while retaining any modules already present in the session.
+		if _, errStr, err := s.executeWithContext(ctx, modules+" | ForEach-Object { if (-not (Get-Module -Name $_)) { Import-Module -Name $_ -ErrorAction Stop } }"); err != nil {
 			err = fmt.Errorf("%s: %w: %w", errStr, ErrLoadModules, err)
 			s.options.logger.Errorf("%v", err)
 			return err
