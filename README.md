@@ -42,7 +42,9 @@ import (
 )
 
 func main() {
-	// choose a backend, which by default will use Windows Powershell (5.1)
+	// choose a backend, which will default to whatever is appropriate for your OS
+	// - Windows: Windows Powershell (5.1)
+	// - Linux and MacOS: pwsh
 	back := &backend.Local{}
 
 	// start a local powershell process
@@ -78,7 +80,7 @@ func main() {
 
 </details>
 
-Alternatively with pwsh (PowerShell version >= 6). This will be made to work for Linux and Mac in a future version.
+If you want to use pwsh (PowerShell version >= 6) on Windows, you can specify the powershell version while setting up the backend:
 
 <details>
 <summary>Expand code</summary>
@@ -87,7 +89,6 @@ Alternatively with pwsh (PowerShell version >= 6). This will be made to work for
 package main
 
 import (
-
 	ps "github.com/paul-at-cybr/go-powershell"
 	"github.com/paul-at-cybr/go-powershell/backend"
 )
